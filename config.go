@@ -4,17 +4,17 @@ import (
 	"fmt"
 )
 
-// Config eureka客户端配置
+// Config eureka 客户端配置
 type Config struct {
-	// eureka服务端地址
+	// eureka 服务端地址
 	DefaultZone string
-	// 心跳间隔，默认30s
+	// 心跳间隔，默认 30s
 	RenewalIntervalInSecs int
-	// 获取服务列表间隔，默认15s
+	// 获取服务列表间隔，默认 15s
 	RegistryFetchIntervalSeconds int
-	// 过期间隔，默认90s
+	// 过期间隔，默认 90s
 	DurationInSecs int
-	// 实例ID，默认ip:app:port
+	// 实例ID，默认 app:ip:port
 	InstanceID string
 	// 应用名称
 	App string
@@ -22,20 +22,20 @@ type Config struct {
 	HostName string
 	// IP，为空则取本地 IP
 	IP string
-	// 端口，默认80
+	// 端口，默认 80
 	Port int
 	// 元数据
 	Metadata map[string]interface{}
 }
 
-// Applications eureka服务端注册的apps
+// Applications eureka 服务端注册的 apps
 type Applications struct {
 	VersionsDelta string        `xml:"versions__delta,omitempty" json:"versions__delta,omitempty"`
 	AppsHashcode  string        `xml:"apps__hashcode,omitempty" json:"apps__hashcode,omitempty"`
 	Applications  []Application `xml:"application,omitempty" json:"application,omitempty"`
 }
 
-// Application eureka服务端注册的app
+// Application eureka 服务端注册的 app
 type Application struct {
 	Name      string     `xml:"name" json:"name"`
 	Instances []Instance `xml:"instance" json:"instance"`

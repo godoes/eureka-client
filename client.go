@@ -208,7 +208,7 @@ func DefaultConfig(config *Config) {
 		config.Port = 80
 	}
 	if config.InstanceID == "" {
-		config.InstanceID = fmt.Sprintf("%s:%s:%d", config.IP, config.App, config.Port)
+		config.InstanceID = fmt.Sprintf("%s:%s:%d", config.App, config.IP, config.Port)
 	}
 }
 
