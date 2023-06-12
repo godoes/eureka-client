@@ -114,7 +114,7 @@ func (c *Client) Send() *Result {
 	if c.params != nil && len(c.params) != 0 {
 		// 如果 url 中已经有 query string 参数，则只需要 & 拼接剩下的即可
 		encoded := c.params.Encode()
-		if strings.Index(c.url, "?") == -1 {
+		if !strings.Contains(c.url, "?") {
 			c.url += "?" + encoded
 		} else {
 			c.url += "&" + encoded
@@ -175,13 +175,12 @@ func (c *Client) createMultipartForm() *Result {
 		}
 	}
 
-	err := writer.Close()
-	if err != nil {
+	if err := writer.Close(); err != nil {
 		result.Err = err
 		return result
 	}
 
-	req, err := http.NewRequest(c.method, c.url, body)
+	req, _ := http.NewRequest(c.method, c.url, body)
 	req.Header = c.header
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	c.doSend(req, result)

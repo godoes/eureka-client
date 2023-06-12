@@ -52,14 +52,14 @@ func (c *Client) refresh() {
 	timer := time.NewTimer(0)
 	interval := time.Duration(c.Config.RegistryFetchIntervalSeconds) * time.Second
 	for c.running {
-		select {
-		case <-timer.C:
-			if err := c.doRefresh(); err != nil {
-				c.logger.Error("refresh application instance failed", err)
-			} else {
-				c.logger.Debug("refresh application instance successful")
-			}
+		<-timer.C
+
+		if err := c.doRefresh(); err != nil {
+			c.logger.Error("refresh application instance failed", err)
+		} else {
+			c.logger.Debug("refresh application instance successful")
 		}
+
 		// reset interval
 		timer.Reset(interval)
 	}
@@ -87,23 +87,23 @@ func (c *Client) heartbeat() {
 	timer := time.NewTimer(0)
 	interval := time.Duration(c.Config.RenewalIntervalInSecs) * time.Second
 	for c.running {
-		select {
-		case <-timer.C:
-			err := c.doHeartbeat()
+		<-timer.C
+
+		err := c.doHeartbeat()
+		if err == nil {
+			c.logger.Debug("heartbeat application instance successful")
+		} else if err == ErrNotFound {
+			// heartbeat not found, need register
+			err = c.doRegister()
 			if err == nil {
-				c.logger.Debug("heartbeat application instance successful")
-			} else if err == ErrNotFound {
-				// heartbeat not found, need register
-				err = c.doRegister()
-				if err == nil {
-					c.logger.Info("register application instance successful")
-				} else {
-					c.logger.Error("register application instance failed", err)
-				}
+				c.logger.Info("register application instance successful")
 			} else {
-				c.logger.Error("heartbeat application instance failed", err)
+				c.logger.Error("register application instance failed", err)
 			}
+		} else {
+			c.logger.Error("heartbeat application instance failed", err)
 		}
+
 		// reset interval
 		timer.Reset(interval)
 	}
@@ -144,12 +144,10 @@ func (c *Client) handleSignal() {
 	if c.signalChan == nil {
 		c.signalChan = make(chan os.Signal)
 	}
-	signal.Notify(c.signalChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGKILL)
+	signal.Notify(c.signalChan, syscall.SIGTERM, syscall.SIGINT)
 	for c.running {
 		switch <-c.signalChan {
 		case syscall.SIGINT:
-			fallthrough
-		case syscall.SIGKILL:
 			fallthrough
 		case syscall.SIGTERM:
 			c.logger.Info("receive exit signal, client instance going to de-register")

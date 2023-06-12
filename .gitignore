@@ -4,3 +4,7 @@
 .vscode/
 
 go.sum
+
+# JVM
+hs_err_*
+replay_pid*
