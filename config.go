@@ -18,6 +18,8 @@ type Config struct {
 	InstanceID string
 	// 应用名称
 	App string
+	// 应用版本
+	Version string
 	// Host，为空则取 IP
 	HostName string
 	// IP，为空则取本地 IP
@@ -48,6 +50,7 @@ type Instance struct {
 	StatusPageURL                 string                 `xml:"statusPageUrl" json:"statusPageUrl"`
 	HealthCheckURL                string                 `xml:"healthCheckUrl,omitempty" json:"healthCheckUrl,omitempty"`
 	App                           string                 `xml:"app" json:"app"`
+	Version                       string                 `xml:"version" json:"version"`
 	IPAddr                        string                 `xml:"ipAddr" json:"ipAddr"`
 	VipAddress                    string                 `xml:"vipAddress" json:"vipAddress"`
 	SecureVipAddress              string                 `xml:"secureVipAddress,omitempty" json:"secureVipAddress,omitempty"`
@@ -109,6 +112,7 @@ func NewInstance(config *Config) *Instance {
 		InstanceID: config.InstanceID,
 		HostName:   config.HostName,
 		App:        config.App,
+		Version:    config.Version,
 		IPAddr:     config.IP,
 		Port: &Port{
 			Port:    config.Port,
