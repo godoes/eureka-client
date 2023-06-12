@@ -50,7 +50,7 @@ func (c *Client) Start() {
 // refresh 刷新服务列表
 func (c *Client) refresh() {
 	timer := time.NewTimer(0)
-	interval := time.Duration(c.Config.RenewalIntervalInSecs) * time.Second
+	interval := time.Duration(c.Config.RegistryFetchIntervalSeconds) * time.Second
 	for c.running {
 		select {
 		case <-timer.C:
@@ -67,10 +67,25 @@ func (c *Client) refresh() {
 	timer.Stop()
 }
 
+// ConnectDetection 连接检测
+func (c *Client) ConnectDetection() error {
+	err := c.doHeartbeat()
+	if err == nil {
+		c.logger.Debug("heartbeat application instance successful")
+		return nil
+	} else if err == ErrNotFound {
+		// heartbeat not found, need register
+		return nil
+	} else {
+		c.logger.Error("heartbeat application instance failed", err)
+		return err
+	}
+}
+
 // heartbeat 心跳
 func (c *Client) heartbeat() {
 	timer := time.NewTimer(0)
-	interval := time.Duration(c.Config.RegistryFetchIntervalSeconds) * time.Second
+	interval := time.Duration(c.Config.RenewalIntervalInSecs) * time.Second
 	for c.running {
 		select {
 		case <-timer.C:
@@ -101,7 +116,7 @@ func (c *Client) doRegister() error {
 }
 
 func (c *Client) doUnRegister() error {
-	return UnRegister(c.Config.DefaultZone, c.Instance.App, c.Instance.InstanceID)
+	return UnRegister(c.Config.DefaultZone, c.Instance.App, c.Instance)
 }
 
 func (c *Client) doHeartbeat() error {
@@ -130,7 +145,7 @@ func (c *Client) handleSignal() {
 		c.signalChan = make(chan os.Signal)
 	}
 	signal.Notify(c.signalChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGKILL)
-	for {
+	for c.running {
 		switch <-c.signalChan {
 		case syscall.SIGINT:
 			fallthrough
@@ -151,7 +166,7 @@ func (c *Client) handleSignal() {
 
 // NewClient 创建客户端
 func NewClient(config *Config, opts ...Option) *Client {
-	defaultConfig(config)
+	DefaultConfig(config)
 	instance := NewInstance(config)
 	client := &Client{
 		logger:   NewLogger(),
@@ -164,9 +179,12 @@ func NewClient(config *Config, opts ...Option) *Client {
 	return client
 }
 
-func defaultConfig(config *Config) {
+func DefaultConfig(config *Config) {
 	if config.DefaultZone == "" {
 		config.DefaultZone = "http://localhost:8761/eureka/"
+	}
+	if !strings.HasSuffix(config.DefaultZone, "/") {
+		config.DefaultZone = config.DefaultZone + "/"
 	}
 	if config.RenewalIntervalInSecs == 0 {
 		config.RenewalIntervalInSecs = 30
@@ -196,7 +214,7 @@ func defaultConfig(config *Config) {
 	}
 }
 
-// 根据服务名获取注册的服务实例列表
+// GetApplicationInstance 根据服务名获取注册的服务实例列表
 func (c *Client) GetApplicationInstance(name string) []Instance {
 	instances := make([]Instance, 0)
 	c.mutex.Lock()

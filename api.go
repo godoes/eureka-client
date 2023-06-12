@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/xuanbo/requests"
+	"github.com/godoes/eureka-client/requests"
 )
 
 var (
@@ -14,7 +14,7 @@ var (
 	ErrNotFound = errors.New("not found")
 )
 
-// 与eureka服务端rest交互
+// 与 eureka 服务端 rest 交互
 // https://github.com/Netflix/eureka/wiki/Eureka-REST-operations
 
 // Register 注册实例
@@ -32,15 +32,21 @@ func Register(zone, app string, instance *Instance) error {
 
 	// status: http.StatusNoContent
 	result := requests.Post(u).Json(info).Send().Status2xx()
+	if result.Err == nil {
+		instance.Beater.AddBeatInfo(instance)
+	}
 	return result.Err
 }
 
 // UnRegister 删除实例
 // DELETE /eureka/v2/apps/appID/instanceID
-func UnRegister(zone, app, instanceID string) error {
-	u := zone + "apps/" + app + "/" + instanceID
+func UnRegister(zone, app string, instance *Instance) error {
+	u := zone + "apps/" + app + "/" + instance.InstanceID
 	// status: http.StatusNoContent
 	result := requests.Delete(u).Send().StatusOk()
+	if result.Err == nil && instance.Beater != nil {
+		instance.Beater.RemoveBeatInfo(app, instance.InstanceID)
+	}
 	return result.Err
 }
 

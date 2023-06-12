@@ -1,5 +1,5 @@
-module github.com/xuanbo/eureka-client
+module github.com/godoes/eureka-client
 
-go 1.14
+go 1.17
 
-require github.com/xuanbo/requests v0.0.1
+require golang.org/x/sync v0.2.0

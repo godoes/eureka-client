@@ -64,6 +64,9 @@ type Instance struct {
 	OverriddenStatus              string                 `xml:"overriddenstatus,omitempty" json:"overriddenstatus,omitempty"`
 	CountryID                     int                    `xml:"countryId,omitempty" json:"countryId,omitempty"`
 	InstanceID                    string                 `xml:"instanceId,omitempty" json:"instanceId,omitempty"`
+
+	EurekaConfig *Config
+	Beater       *BeatReactor
 }
 
 // Port 端口
@@ -128,7 +131,10 @@ func NewInstance(config *Config) *Instance {
 		// 元数据
 		Metadata: config.Metadata,
 	}
-	instance.HomePageURL = fmt.Sprintf("http://%s:%d", config.IP, config.Port)
-	instance.StatusPageURL = fmt.Sprintf("http://%s:%d/info", config.IP, config.Port)
+	instance.HomePageURL = fmt.Sprintf("%s://%s:%d", "http", config.IP, config.Port)
+	instance.StatusPageURL = fmt.Sprintf("%s://%s:%d/info", "http", config.IP, config.Port)
+	instance.EurekaConfig = config
+	beater := NewBeatReactor(config, int64(config.RenewalIntervalInSecs))
+	instance.Beater = &beater
 	return instance
 }
