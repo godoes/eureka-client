@@ -2,7 +2,7 @@
 color 07
 title 漏洞检查
 :: file-encoding=GBK
-rem by liutianqi
+rem by iTanken
 
 rem 获取 go 版本
 set gv=99999999999999999999
@@ -21,9 +21,29 @@ if %ver% leq 1.17 (
   pause & exit
 )
 
-cd /d %~dp0/../../ & echo.
-echo 开始进行漏洞检查... & cd & echo.
+echo 开始进行漏洞检查... & echo.
+if "%~dp0" equ "%CD%\" (
+  cd /d %~dp0/../../
+)
+echo 脚本所在路径：%~dp0
+echo 当前工作目录：%CD%\
+echo.
+echo 开始进行静态检查...
 
-go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+echo. & echo [govulncheck]
+setlocal
+where govulncheck >nul 2>&1
+if "%ERRORLEVEL%" equ "0" (
+  echo local govulncheck...
+  govulncheck ./...
+) else (
+  if %ver% leq 1.20 (
+    echo "go1.20 latest => govulncheck@v1.1.1"
+    go run golang.org/x/vuln/cmd/govulncheck@v1.1.1 ./...
+  ) else (
+    go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+  )
+)
+endlocal
 
 call "%~dp0/done-time-pause.bat"

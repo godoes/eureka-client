@@ -1,6 +1,6 @@
 @echo off
 :: file-encoding=GBK
-rem by liutianqi
+rem by iTanken
 rem 公共 footer 脚本，用于打印完成时间及根据 BatNoPause 环境变量判断是否显示按任意键继续
 
 color 0f
@@ -17,4 +17,3 @@ echo. & echo [%_now%] 执行%_title%完成！ & echo.
 if "%BatNoPause%" NEQ "1" (
   pause
 )
-
