@@ -111,7 +111,7 @@ func (c *Client) Multipart(multipart FileForm) *Client {
 func (c *Client) Send() *Result {
 	var result *Result
 
-	if c.params != nil && len(c.params) != 0 {
+	if len(c.params) > 0 {
 		// 如果 url 中已经有 query string 参数，则只需要 & 拼接剩下的即可
 		encoded := c.params.Encode()
 		if !strings.Contains(c.url, "?") {
