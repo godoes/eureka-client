@@ -28,6 +28,8 @@ type Config struct {
 	Port int
 	// 元数据
 	Metadata map[string]interface{}
+	// 日志级别: DEBUG / INFO / WARN / ERROR
+	LogLevel int
 }
 
 // Applications eureka 服务端注册的 apps
@@ -137,6 +139,7 @@ func NewInstance(config *Config) *Instance {
 	}
 	instance.HomePageURL = fmt.Sprintf("%s://%s:%d", "http", config.IP, config.Port)
 	instance.StatusPageURL = fmt.Sprintf("%s://%s:%d/info", "http", config.IP, config.Port)
+	instance.HealthCheckURL = fmt.Sprintf("%s://%s:%d/health", "http", config.IP, config.Port)
 	instance.EurekaConfig = config
 	beater := NewBeatReactor(config, int64(config.RenewalIntervalInSecs))
 	instance.Beater = &beater

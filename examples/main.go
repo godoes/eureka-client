@@ -25,6 +25,7 @@ func main() {
 			"PRODUCT_ENV_CODE":     "DEFAULT",
 			"SERVICE_VERSION_CODE": "DEFAULT",
 		},
+		LogLevel: eureka.DEBUG,
 	}, func(instance *eureka.Instance) {
 		// custom instance
 		instance.InstanceID = "go-example"

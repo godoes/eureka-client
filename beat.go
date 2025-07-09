@@ -39,7 +39,7 @@ func NewBeatReactor(config *Config, clientBeatIntervalInSecs int64) BeatReactor 
 	br.beatRecordMap = NewConcurrentMap()
 	br.beatThreadSemaphore = semaphore.NewWeighted(int64(br.beatThreadCount))
 	br.mux = new(sync.Mutex)
-	br.log = NewLogger()
+	br.log = NewLogger(config.LogLevel)
 	br.Period = time.Duration(clientBeatIntervalInSecs) * time.Second
 	return br
 }

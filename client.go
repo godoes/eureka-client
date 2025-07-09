@@ -168,7 +168,7 @@ func NewClient(config *Config, opts ...Option) *Client {
 	DefaultConfig(config)
 	instance := NewInstance(config)
 	client := &Client{
-		logger:   NewLogger(),
+		logger:   NewLogger(config.LogLevel),
 		Config:   config,
 		Instance: instance,
 	}
