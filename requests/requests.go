@@ -112,13 +112,19 @@ func (c *Client) Send() *Result {
 	var result *Result
 
 	if len(c.params) > 0 {
-		// 如果 url 中已经有 query string 参数，则只需要 & 拼接剩下的即可
-		encoded := c.params.Encode()
-		if !strings.Contains(c.url, "?") {
-			c.url += "?" + encoded
-		} else {
-			c.url += "&" + encoded
+		u, err := url.Parse(c.url)
+		if err != nil {
+			result = &Result{Err: err}
+			return result
 		}
+		q := u.Query()
+		for k, vs := range c.params {
+			for _, v := range vs {
+				q.Add(k, v)
+			}
+		}
+		u.RawQuery = q.Encode()
+		c.url = u.String()
 	}
 
 	contentType := c.header.Get("Content-Type")
@@ -148,21 +154,18 @@ func (c *Client) createMultipartForm() *Result {
 			result.Err = err
 			return result
 		}
+		err = func() (err error) {
+			defer func(file *os.File) {
+				_ = file.Close()
+			}(file)
 
-		part, err := writer.CreateFormFile(name, filename)
-		if err != nil {
-			result.Err = err
-			return result
-		}
-
-		// TODO 这里的 io.Copy 实现，会把 file 文件都读取到内存里面，然后当做一个 buffer 传给 NewRequest。对于大文件来说会占用很多内存
-		_, err = io.Copy(part, file)
-		if err != nil {
-			result.Err = err
-			return result
-		}
-
-		err = file.Close()
+			var part io.Writer
+			if part, err = writer.CreateFormFile(name, filename); err != nil {
+				return
+			}
+			_, err = io.Copy(part, file)
+			return
+		}()
 		if err != nil {
 			result.Err = err
 			return result
@@ -180,7 +183,12 @@ func (c *Client) createMultipartForm() *Result {
 		return result
 	}
 
-	req, _ := http.NewRequest(c.method, c.url, body)
+	req, err := http.NewRequest(c.method, c.url, body)
+	if err != nil {
+		result.Err = err
+		return result
+	}
+
 	req.Header = c.header
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	c.doSend(req, result)
@@ -281,16 +289,11 @@ func (r *Result) Raw() ([]byte, error) {
 		return nil, r.Err
 	}
 
-	b, err := io.ReadAll(r.Resp.Body)
-	if err != nil {
-		r.Err = err
-		return nil, r.Err
-	}
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
 	}(r.Resp.Body)
 
-	return b, r.Err
+	return io.ReadAll(r.Resp.Body)
 }
 
 // Text 获取 http 响应内容，返回字符串
@@ -336,10 +339,7 @@ func (r *Result) Save(name string) error {
 		return r.Err
 	}
 
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(r.Resp.Body)
-
+	_ = r.Resp.Body.Close()
 	return nil
 }
 
