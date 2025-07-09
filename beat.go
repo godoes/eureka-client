@@ -2,6 +2,7 @@ package eureka_client
 
 import (
 	"context"
+	"errors"
 	"log"
 	"sync"
 	"time"
@@ -91,7 +92,7 @@ func (br *BeatReactor) sendInstanceBeat(k string, beatInfo *Instance) {
 
 		if err != nil {
 			log.Printf("beat to server return error:%+v", err)
-			if err == ErrNotFound {
+			if errors.Is(err, ErrNotFound) {
 				log.Printf("can't find this instance, heart beat exist. key:%s", k)
 				br.beatMap.Remove(k)
 				return

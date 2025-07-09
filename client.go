@@ -1,6 +1,7 @@
 package eureka_client
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -73,7 +74,7 @@ func (c *Client) ConnectDetection() error {
 	if err == nil {
 		c.logger.Debug("heartbeat application instance successful")
 		return nil
-	} else if err == ErrNotFound {
+	} else if errors.Is(err, ErrNotFound) {
 		// heartbeat not found, need register
 		return nil
 	} else {
@@ -92,7 +93,7 @@ func (c *Client) heartbeat() {
 		err := c.doHeartbeat()
 		if err == nil {
 			c.logger.Debug("heartbeat application instance successful")
-		} else if err == ErrNotFound {
+		} else if errors.Is(err, ErrNotFound) {
 			// heartbeat not found, need register
 			err = c.doRegister()
 			if err == nil {
