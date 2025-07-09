@@ -51,6 +51,8 @@ func (c *Client) Start() {
 // refresh 刷新服务列表
 func (c *Client) refresh() {
 	timer := time.NewTimer(0)
+	defer timer.Stop()
+
 	interval := time.Duration(c.Config.RegistryFetchIntervalSeconds) * time.Second
 	for c.running {
 		<-timer.C
@@ -64,8 +66,6 @@ func (c *Client) refresh() {
 		// reset interval
 		timer.Reset(interval)
 	}
-	// stop
-	timer.Stop()
 }
 
 // ConnectDetection 连接检测
@@ -86,6 +86,8 @@ func (c *Client) ConnectDetection() error {
 // heartbeat 心跳
 func (c *Client) heartbeat() {
 	timer := time.NewTimer(0)
+	defer timer.Stop()
+
 	interval := time.Duration(c.Config.RenewalIntervalInSecs) * time.Second
 	for c.running {
 		<-timer.C
@@ -108,8 +110,6 @@ func (c *Client) heartbeat() {
 		// reset interval
 		timer.Reset(interval)
 	}
-	// stop
-	timer.Stop()
 }
 
 func (c *Client) doRegister() error {
@@ -143,14 +143,17 @@ func (c *Client) doRefresh() error {
 // handleSignal 监听退出信号，删除注册的实例
 func (c *Client) handleSignal() {
 	if c.signalChan == nil {
-		c.signalChan = make(chan os.Signal)
+		c.signalChan = make(chan os.Signal, 1)
 	}
 	signal.Notify(c.signalChan, syscall.SIGTERM, syscall.SIGINT)
+	defer func() {
+		signal.Stop(c.signalChan)
+		close(c.signalChan)
+	}()
+
 	for c.running {
 		switch <-c.signalChan {
-		case syscall.SIGINT:
-			fallthrough
-		case syscall.SIGTERM:
+		case syscall.SIGINT, syscall.SIGTERM:
 			c.logger.Info("receive exit signal, client instance going to de-register")
 			err := c.doUnRegister()
 			if err != nil {
@@ -215,16 +218,16 @@ func DefaultConfig(config *Config) {
 
 // GetApplicationInstance 根据服务名获取注册的服务实例列表
 func (c *Client) GetApplicationInstance(name string) []Instance {
-	instances := make([]Instance, 0)
-	c.mutex.Lock()
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
+	var instances []Instance
 	if c.Applications != nil {
 		for _, app := range c.Applications.Applications {
-			if app.Name == name {
+			if app.Name == name && app.Instances != nil {
 				instances = append(instances, app.Instances...)
 			}
 		}
 	}
-	c.mutex.Unlock()
-
 	return instances
 }
