@@ -2,6 +2,7 @@ package eureka_client
 
 import (
 	"encoding/json"
+	"hash/fnv"
 	"sync"
 )
 
@@ -28,7 +29,9 @@ func NewConcurrentMap() ConcurrentMap {
 
 // GetShard Returns shard under given key
 func (m ConcurrentMap) GetShard(key string) *ConcurrentMapShared {
-	return m[uint(fnv32(key))%uint(ShardCount)]
+	hash := fnv.New32()
+	_, _ = hash.Write([]byte(key))
+	return m[hash.Sum32()%uint32(ShardCount)]
 }
 
 func (m ConcurrentMap) MSet(data map[string]interface{}) {
@@ -177,15 +180,16 @@ func snapshot(m ConcurrentMap) (channels []chan Tuple) {
 	// Foreach shard.
 	for index, shard := range m {
 		go func(index int, shard *ConcurrentMapShared) {
+			defer wg.Done()
 			// Foreach key, value pair.
 			shard.RLock()
-			channels[index] = make(chan Tuple, len(shard.items))
-			wg.Done()
+			ch := make(chan Tuple, len(shard.items))
+			channels[index] = ch
 			for key, val := range shard.items {
-				channels[index] <- Tuple{key, val}
+				ch <- Tuple{key, val}
 			}
 			shard.RUnlock()
-			close(channels[index])
+			close(ch)
 		}(index, shard)
 	}
 	wg.Wait()
@@ -197,8 +201,8 @@ func fanIn(channels []chan Tuple, out chan Tuple) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(channels))
 	for _, ch := range channels {
-		go func(ch chan Tuple) {
-			for t := range ch {
+		go func(c chan Tuple) {
+			for t := range c {
 				out <- t
 			}
 			wg.Done()
@@ -211,12 +215,13 @@ func fanIn(channels []chan Tuple, out chan Tuple) {
 // Items Returns all items as map[string]interface{}
 func (m ConcurrentMap) Items() map[string]interface{} {
 	tmp := make(map[string]interface{})
-
-	// Insert items to temporary map.
-	for item := range m.IterBuffered() {
-		tmp[item.Key] = item.Val
+	for _, shard := range m {
+		shard.RLock()
+		for k, v := range shard.items {
+			tmp[k] = v
+		}
+		shard.RUnlock()
 	}
-
 	return tmp
 }
 
@@ -230,7 +235,7 @@ type IterCb func(key string, v interface{})
 // all elements in a map.
 func (m ConcurrentMap) IterCb(fn IterCb) {
 	for idx := range m {
-		shard := (m)[idx]
+		shard := m[idx]
 		shard.RLock()
 		for key, value := range shard.items {
 			fn(key, value)
@@ -242,74 +247,26 @@ func (m ConcurrentMap) IterCb(fn IterCb) {
 // Keys Return all keys as []string
 func (m ConcurrentMap) Keys() []string {
 	count := m.Count()
-	ch := make(chan string, count)
-	go func() {
-		// Foreach shard.
-		wg := sync.WaitGroup{}
-		wg.Add(ShardCount)
-		for _, shard := range m {
-			go func(shard *ConcurrentMapShared) {
-				// Foreach key, value pair.
-				shard.RLock()
-				for key := range shard.items {
-					ch <- key
-				}
-				shard.RUnlock()
-				wg.Done()
-			}(shard)
-		}
-		wg.Wait()
-		close(ch)
-	}()
-
-	// Generate keys
 	keys := make([]string, 0, count)
-	for k := range ch {
-		keys = append(keys, k)
+	for _, shard := range m {
+		shard.RLock()
+		for key := range shard.items {
+			keys = append(keys, key)
+		}
+		shard.RUnlock()
 	}
 	return keys
 }
 
 // MarshalJSON Reviles ConcurrentMap "private" variables to json marshal.
 func (m ConcurrentMap) MarshalJSON() ([]byte, error) {
-	// Create a temporary map, which will hold all item spread across shards.
 	tmp := make(map[string]interface{})
-
-	// Insert items to temporary map.
-	for item := range m.IterBuffered() {
-		tmp[item.Key] = item.Val
+	for _, shard := range m {
+		shard.RLock()
+		for k, v := range shard.items {
+			tmp[k] = v
+		}
+		shard.RUnlock()
 	}
 	return json.Marshal(tmp)
 }
-
-func fnv32(key string) uint32 {
-	hash := uint32(2166136261)
-	const prime32 = uint32(16777619)
-	for i := 0; i < len(key); i++ {
-		hash *= prime32
-		hash ^= uint32(key[i])
-	}
-	return hash
-}
-
-// Concurrent map uses Interface{} as its value,
-// therefor JSON Unmarshal probably won't know which to type to unmarshal into,
-// in such case we'll end up with a value of type map[string]interface{},
-// In most cases this isn't out value type, this is why we've decided to remove this functionality.
-
-// func (m *ConcurrentMap) UnmarshalJSON(b []byte) (err error) {
-// 	// Reverse process of Marshal.
-
-// 	tmp := make(map[string]interface{})
-
-// 	// Unmarshal into a single map.
-// 	if err := json.Unmarshal(b, &tmp); err != nil {
-// 		return nil
-// 	}
-
-// 	// foreach key,value pair in temporary map insert into our concurrent map.
-// 	for key, val := range tmp {
-// 		m.Set(key, val)
-// 	}
-// 	return nil
-// }
