@@ -28,8 +28,9 @@ type Config struct {
 	Port int
 	// 元数据
 	Metadata map[string]interface{}
-	// 日志级别: DEBUG / INFO / WARN / ERROR
-	LogLevel int
+	// 自定义日志级别: DEBUG / INFO / WARN / ERROR
+	//  - 非 eureka 客户端标准配置，不能序列化到请求内容中
+	LogLevel int `json:"-" xml:"-"`
 }
 
 // Applications eureka 服务端注册的 apps
